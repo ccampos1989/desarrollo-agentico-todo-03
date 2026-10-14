@@ -237,3 +237,28 @@ func (as *ActionSuite) Test_TasksUpdate_InvalidID() {
 	res := as.HTML("/tasks/no-es-un-uuid").Put(url.Values{"title": {"Título nuevo"}})
 	as.Equal(404, res.Code)
 }
+
+func (as *ActionSuite) Test_TasksToggle_GetDoesNotToggle() {
+	task := &models.Task{Title: "Pendiente por GET"}
+	verrs, err := as.DB.ValidateAndCreate(task)
+	as.NoError(err)
+	as.False(verrs.HasAny())
+
+	res := as.HTML("/tasks/%s/toggle", task.ID).Get()
+	as.NotEqual(200, res.Code)
+	as.NotEqual(303, res.Code)
+
+	as.NoError(as.DB.Reload(task))
+	as.False(task.Completed)
+}
+
+func (as *ActionSuite) Test_AppJS_TogglePersistsWithFormRequest() {
+	res := as.HTML("/assets/app.js").Get()
+	as.Equal(200, res.Code)
+
+	body := res.Body.String()
+	as.Contains(body, `method: "POST"`)
+	as.Contains(body, "new FormData(form)")
+	as.Contains(body, `credentials: "same-origin"`)
+	as.NotContains(body, "fetch(form.action);")
+}
